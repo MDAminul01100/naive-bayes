@@ -1,19 +1,13 @@
 package spam;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.*;
 
 public class TrainDataForSpamDetection {
-	String inputFile;
-	
-	
-	public TrainDataForSpamDetection(String inputFile)
-	{
-		this.inputFile = inputFile;
-	}
 	
 	public ArrayList<ArrayList<Double>> takeInput(String inputFILE) throws IOException
 	{
@@ -21,8 +15,7 @@ public class TrainDataForSpamDetection {
 		BufferedReader br = new BufferedReader(new FileReader(inputFILE));
 		
 		while(true)
-		{
-			
+		{			
 			String tempStr = br.readLine();
 			if(tempStr == null)
 				break;
@@ -39,14 +32,11 @@ public class TrainDataForSpamDetection {
 		return tempInputArrayList;
 	}
 	
-	public String makeTarinedFile() throws IOException
+	public String makeTarinedFile(ArrayList<ArrayList<Double>> inputArrayList) throws IOException
 	{
-		//BufferedWriter wr = new BufferedWriter(new FileWriter("trainedFile.txt",true));
-		FileWriter wr = new FileWriter("File.txt",true);
-		ArrayList<ArrayList<Double>> inputArrayList = new ArrayList<ArrayList<Double>>(); 
-		inputArrayList = takeInput(inputFile);
-		
-		
+		String trainedFile = "trainedFile.txt";
+		BufferedWriter wr = new BufferedWriter(new FileWriter(trainedFile));
+	
 		int numberOfLines = inputArrayList.size() ;
 		int numberOfDataInALine = inputArrayList.get(0).size() - 4;
 		
@@ -54,21 +44,22 @@ public class TrainDataForSpamDetection {
 		{
 			double tempSpamProbability = 0;
 			double tempHamProbability = 0;
-			double tempHam = 0;
-			double tempSpam = 0;
+			double tempHamFrequency = 0;
+			double tempSpamFrequency = 0;
 			double count = 0;
 			for(int j = 0; j < numberOfLines; j++)
 			{
-				if(inputArrayList.get(j).get(numberOfDataInALine + 3) == 1)
-					tempSpam += inputArrayList.get(j).get(i);
-				else
-					tempHam += inputArrayList.get(j).get(i);
 				count += inputArrayList.get(j).get(i);
+
+				if(inputArrayList.get(j).get(numberOfDataInALine + 3) == 1.0)
+					tempSpamFrequency += inputArrayList.get(j).get(i);
+				else if(inputArrayList.get(j).get(numberOfDataInALine + 3) == 0.0)
+					tempHamFrequency += inputArrayList.get(j).get(i);
 			}
 			if(count != 0)
 			{
-				tempSpamProbability = tempSpam / count;
-				tempHamProbability = tempHam / count;
+				tempSpamProbability = tempSpamFrequency / count;
+				tempHamProbability = tempHamFrequency / count;
 			}
 			String toString = tempHamProbability +"," + tempSpamProbability + System.lineSeparator();
 			
@@ -76,25 +67,27 @@ public class TrainDataForSpamDetection {
 			
 		}	
 		wr.close();
-		return "File.txt";
+		return ("C:\\\\Users\\\\aminul\\\\eclipse-workspace\\\\dbms\\\\"+ trainedFile);
 	}	
-	public double getPrediction(ArrayList<ArrayList<Double>> tempArrayList,ArrayList<ArrayList<Double>> inputArrayList,ArrayList<ArrayList<Double>> probArrayList)
+	public double getPrediction(ArrayList<ArrayList<Double>> tempArrayList,ArrayList<ArrayList<Double>> probArrayList)
 	{
-		double predictionAccuracy;
+		
+		double predictionAccuracy = 0.0;
 		int numberOfDataInALine = tempArrayList.get(0).size()-4;
 		int correctPrediction = 0;
 		for(int i = 0; i < tempArrayList.size(); i++)
 		{
-			double hamProb = 1.0;
-			double spamProb = 1.0;
+			double hamProb = 0.0;
+			double spamProb = 0.0;
 			
 			for(int j = 0; j < numberOfDataInALine; j++)
 			{
-				if(tempArrayList.get(i).get(j) != 0.0)
+				if(tempArrayList.get(i).get(j) == 0.0)
 				{
-					hamProb += java.lang.Math.log(probArrayList.get(j).get(0)+1);
-					spamProb += java.lang.Math.log(probArrayList.get(j).get(1)+1);
+					continue;
 				}
+				hamProb += java.lang.Math.log(probArrayList.get(j).get(0)+1);
+				spamProb += java.lang.Math.log(probArrayList.get(j).get(1)+1);
 			}
 			
 			if((hamProb > spamProb) && (tempArrayList.get(i).get(numberOfDataInALine + 3) == 0.0))
@@ -109,19 +102,19 @@ public class TrainDataForSpamDetection {
 	}
 	
 	
-	public double getAccuracy(String probabilityFile,String dataFile,int seedValue) throws IOException
+	public double getAccuracy(String dataFile,int seedValue) throws IOException
 	{
 		ArrayList<ArrayList<Double>> inputArrayList = new ArrayList<ArrayList<Double>>(); 
 		ArrayList<ArrayList<Double>> probArrayList = new ArrayList<ArrayList<Double>>(); 
+		ArrayList<ArrayList<Double>> arrayListToTrainData = new ArrayList<ArrayList<Double>>();
 		
 		inputArrayList = takeInput(dataFile);
-		probArrayList = takeInput(probabilityFile);
 		
-		int count = inputArrayList.size()/10;
+		int count = inputArrayList.size();
 		Random rand = new Random(seedValue);
-		int temp = count;
+		int temp = count/10;
 		
-		boolean []flag = new boolean[inputArrayList.size()];
+		boolean []flag = new boolean[count];
 		for(int i = 0; i < count; i++)
 			flag[i] = false;
 		
@@ -129,18 +122,33 @@ public class TrainDataForSpamDetection {
 		while(temp > 0)
 		{
 			int temp1 = rand.nextInt(inputArrayList.size());
-			if(flag[temp1]) 
-				continue;
+			if(flag[temp1] == true) {continue;}
+			
 			tempArrayList.add(inputArrayList.get(temp1));
 			temp--;
+			flag[temp1] = true;
 		}
-		return getPrediction(tempArrayList,inputArrayList,probArrayList);
+		
+		for(int i = 0; i < inputArrayList.size(); i++)
+		{
+			if(flag[i] == false)
+				arrayListToTrainData.add(inputArrayList.get(i));
+		}
+		String probabilityFile = makeTarinedFile(arrayListToTrainData);
+		probArrayList = takeInput(probabilityFile);
+		
+		return getPrediction(tempArrayList,probArrayList);
 	}
-	public void doCrossValidation(String probabilityFile) throws IOException
+
+	public void doCrossValidation() throws IOException
 	{
 		double accuracy = 0;
 		for(int i= 0; i< 10; i++)
-			accuracy += getAccuracy(probabilityFile,"C:\\\\Users\\\\Aminul\\\\eclipse-workspace\\\\dbms\\\\src\\\\spam\\\\data.txt",i);
+		{
+			double temp = getAccuracy("C:\\\\Users\\\\Aminul\\\\eclipse-workspace\\\\dbms\\\\src\\\\spam\\\\input.txt",i);
+			accuracy += temp;
+		
+		}
 		System.out.println(accuracy*10 + "%");
 	}		
 }
